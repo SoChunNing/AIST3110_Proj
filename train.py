@@ -20,7 +20,7 @@ def load_csv(script_dir)->pd.DataFrame:
 
 if __name__ == "__main__":
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    data = load_csv()
+    data = load_csv(script_dir)
     y = data['y']
     data = data.drop(['y'], axis=1)
     label_encoder = LabelEncoder()
