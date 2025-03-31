@@ -6,6 +6,7 @@ from sklearn.preprocessing import LabelEncoder
 import os
 import pandas as pd
 import joblib
+from parameters import *
 
 def load_csv(script_dir)->pd.DataFrame:
     #Load data from all csv files
@@ -15,11 +16,11 @@ def load_csv(script_dir)->pd.DataFrame:
             for song in os.listdir(f'{script_dir}/data/csv/{dataset}/{track}'):
                 data = pd.read_csv(f'{script_dir}/data/csv/{dataset}/{track}/{song}')
                 data_load = pd.concat([data_load, data], ignore_index=True)
+                print('loading' f'{script_dir}/data/csv/{dataset}/{track}/{song}')
 
     return data_load
 
 if __name__ == "__main__":
-    script_dir = os.path.dirname(os.path.abspath(__file__))
     data = load_csv(script_dir)
     y = data['y']
     data = data.drop(['y'], axis=1)
@@ -28,7 +29,7 @@ if __name__ == "__main__":
     y_encoded = label_encoder.fit_transform(y)
 
     X_train, X_test, y_train, y_test = train_test_split(data, y_encoded, test_size=0.2, random_state=42)
-
+    print("Training model")
     model = RandomForestClassifier(n_estimators=100, random_state=42)
     model.fit(X_train, y_train)
     

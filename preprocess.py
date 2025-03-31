@@ -1,8 +1,8 @@
-#This file is use to process the audio/gt file into training data
 import librosa
 import numpy as np
 import pandas as pd
 import os
+from parameters import *
 
 #Extract start time, endtime and chord label from ground-truth file
 def load_gt(gt_path):
@@ -46,7 +46,7 @@ def label_y_to_chromagram(start_time_list, end_time_list, chord_list, chromagram
         start_bound = round(start_time / tw)
         end_bound = round(end_time / tw)
         y.extend((end_bound - start_bound) * [chord])
-        #check if the length of y is equal to the length of chromagram (no. of rows)
+        #Check if the length of y is equal to the length of chromagram (no. of rows)
     if len(y) < chromagram_length:
         y.extend((chromagram_length - len(y)) * 'N') #Fit with No chord first, will be adjust later
     else:
@@ -60,19 +60,15 @@ def label_y_to_chromagram(start_time_list, end_time_list, chord_list, chromagram
 
 if __name__ == "__main__":
     ###Load the data
-    new_sr = 11025
-    hop_length = 512
-
-    script_dir = os.path.dirname(os.path.abspath(__file__))
     for dataset in os.listdir(f'{script_dir}/data/audio'):
         for track in os.listdir(f'{script_dir}/data/audio/{dataset}'):
             #Create the directory for csv files
             os.makedirs(f'{script_dir}/data/chromagram/{dataset}/{track}', exist_ok=True) 
             for song in os.listdir(f'{script_dir}/data/audio/{dataset}/{track}'):
-                chromagram = load_audio(f'{script_dir}/data/audio/{dataset}/{track}/{song}', hop_length, new_sr)
+                chromagram = load_audio(f'{script_dir}/data/audio/{dataset}/{track}/{song}', hop_length, target_sr)
                 song_name= os.path.splitext(song)[0]
                 start_time_list, end_time_list, chord_list = load_gt(f'{script_dir}/data/gt/{dataset}/{track}/{song_name}.lab')
-                data = label_y_to_chromagram(start_time_list, end_time_list, chord_list, chromagram, hop_length, new_sr)
+                data = label_y_to_chromagram(start_time_list, end_time_list, chord_list, chromagram, hop_length, target_sr)
                 write_path = f'{script_dir}/data/chromagram/{dataset}/{track}/{song_name}.csv'
                 data.to_csv(write_path, index=False)
                 print(f'{script_dir}/data/audio/{dataset}/{track}/{song} conversion done!')
