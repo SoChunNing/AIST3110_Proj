@@ -4,6 +4,19 @@ import pandas as pd
 import os
 from parameters import *
 
+#Convert chord labels for simiplified machine learning
+def convert_chord(chord):
+    #Deal with single character chord labels
+    if len(chord) == 1 and chord != 'N':
+        return chord + ':maj'
+    else:
+        root, minor = chord.split(':')
+        if minor != 'min':
+            minor = 'min'
+            return root + ':' + minor
+        else:
+            return chord + ':maj'
+
 #Extract start time, endtime and chord label from ground-truth file
 def load_gt(gt_path):
 
@@ -11,7 +24,8 @@ def load_gt(gt_path):
 
     with open(gt_path, 'r') as f:
         for gt_chord_line in f:
-            gt_chord_line = gt_chord_line.rstrip() #remove all the whitespace at the right
+            #remove all the whitespace at the right side of the string
+            gt_chord_line = gt_chord_line.rstrip() 
             str_toks = gt_chord_line.split()
             start_time = float(str_toks[0])
             start_time_list.append(start_time)
@@ -28,13 +42,13 @@ def load_audio(audio_path, hop_length, target_sr = 44100):
     y, sr = librosa.load(audio_path, sr = None)
     y_downsampled = librosa.resample(y, orig_sr=sr, target_sr=target_sr)
     tuning = librosa.estimate_tuning(y=y_downsampled, sr=target_sr)
-    y_downsampled_pitched = librosa.effects.pitch_shift(y=y_downsampled, sr=target_sr, n_steps=0) #pitch for debugging
-    chromagram = librosa.feature.chroma_cqt(y=y_downsampled_pitched, sr=target_sr, hop_length=hop_length, tuning=tuning)
+    #y_downsampled_pitched = librosa.effects.pitch_shift(y=y_downsampled, sr=target_sr, n_steps=0) #pitch shift for debugging
+    chromagram = librosa.feature.chroma_cqt(y=y_downsampled, sr=target_sr, hop_length=hop_length, tuning=tuning)
     chromagram_T = chromagram.T #row: time frame, column: pitch-class
     
     return chromagram_T
 
-#Label y(chord) to chromagram within the coreesponding boundaries and return a pd.DataFrame
+#Label y(chord) to chromagram within the corresponding boundaries and return a pd.DataFrame
 def label_y_to_chromagram(start_time_list, end_time_list, chord_list, chromagram:np.array, hop_length, sr)->pd.DataFrame:
     #time length of each chroma frame
     y = []
@@ -63,13 +77,13 @@ if __name__ == "__main__":
     for dataset in os.listdir(f'{script_dir}/data/audio'):
         for track in os.listdir(f'{script_dir}/data/audio/{dataset}'):
             #Create the directory for csv files
-            os.makedirs(f'{script_dir}/data/chromagram/{dataset}/{track}', exist_ok=True) 
+            os.makedirs(f'{script_dir}/data/csv/{dataset}/{track}', exist_ok=True) 
             for song in os.listdir(f'{script_dir}/data/audio/{dataset}/{track}'):
                 chromagram = load_audio(f'{script_dir}/data/audio/{dataset}/{track}/{song}', hop_length, target_sr)
                 song_name= os.path.splitext(song)[0]
                 start_time_list, end_time_list, chord_list = load_gt(f'{script_dir}/data/gt/{dataset}/{track}/{song_name}.lab')
                 data = label_y_to_chromagram(start_time_list, end_time_list, chord_list, chromagram, hop_length, target_sr)
-                write_path = f'{script_dir}/data/chromagram/{dataset}/{track}/{song_name}.csv'
+                write_path = f'{script_dir}/data/csv/{dataset}/{track}/{song_name}.csv'
                 data.to_csv(write_path, index=False)
                 print(f'{script_dir}/data/audio/{dataset}/{track}/{song} conversion done!')
 
