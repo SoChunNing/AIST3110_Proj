@@ -3,8 +3,32 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import TensorDataset, DataLoader
+from torch.utils.data import Dataset, DataLoader
 from rnn_model import LSTMClassifier
+
+class ChromagramDataset(Dataset):
+    def __init__(self, df_list):
+        self.data = []
+        self.labels = []
+        for df in df_list:
+            # Assume the DataFrame contains chromagram data in the first 12 columns
+            # and a 'label' column for the corresponding label.
+            chroma = df.iloc[:, :12].values  # shape: (sequence_length, 12)
+            # Here we assume a single label for the whole sequence
+            # Alternatively, you can also have per-time-step labels.
+            label = df['label'].iloc[0]  
+            self.data.append(chroma)
+            self.labels.append(label)
+    
+    def __len__(self):
+        return len(self.data)
+    
+    def __getitem__(self, idx):
+        # Convert the chromagram and label into PyTorch tensors.
+        # For an RNN, the input shape should be (sequence_length, num_features).
+        x = torch.tensor(self.data[idx], dtype=torch.float32)
+        y = torch.tensor(self.labels[idx], dtype=torch.long)
+        return x, y
 
 def rnn_train(csv_file):
     features = df.iloc[:, :12].values  # shape: (sequence_length, 12)
@@ -14,8 +38,8 @@ def rnn_train(csv_file):
     hidden_dim = 50
     num_classes = 10  # Adjust this to match your number of chord labels.
     num_layers = 1
-    use_cuda = False  # Set True if using GPU
-    bidirectional = False
+    use_cuda = torch.cuda.is_available()
+    bidirectional = True
 
     model = LSTMClassifier(input_size, hidden_dim, num_classes, num_layers, use_cuda, bidirectional,
                         dropout=(0.4, 0.0, 0.0))

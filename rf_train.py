@@ -1,4 +1,4 @@
-#This file is used for model training
+#This file is used for model training using Random Forest Model
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
@@ -8,6 +8,7 @@ import pandas as pd
 import joblib
 from parameters import *
 from datetime import datetime
+from y_encoder import *
 
 
 def load_csv(script_dir)->pd.DataFrame:
@@ -35,12 +36,12 @@ if __name__ == "__main__":
     data = load_csv(script_dir)
     y = data['y']
     data = data.drop(['y'], axis=1)
-    label_encoder = LabelEncoder()
-    label_encoder.fit(y)
-    y_encoded = label_encoder.fit_transform(y)
-
-    X_train, X_test, y_train, y_test = train_test_split(data, y_encoded, test_size=0.2, random_state=42)
+    create_encoder(y)
+    #Encode the labels using the fitted encoder
+    y_encoded = encode_y(y)
     print("Start training model at", get_time())
+    #Split the data into training and testing sets
+    X_train, X_test, y_train, y_test = train_test_split(data, y_encoded, test_size=0.2, random_state=42)
     model = RandomForestClassifier(n_estimators=50, max_depth=20, random_state=42, max_features='log2')
     model.fit(X_train, y_train)
     
@@ -49,9 +50,6 @@ if __name__ == "__main__":
     accuarcy = accuracy_score(y_test, y_pred)
     print(f'Training complete at {get_time()}, model accuracy = {accuarcy:.2f}')
 
-    #Save the model and y_encoder
-    joblib.dump(model, f'{script_dir}/model/RF_model.pkl')
-    joblib.dump(label_encoder, f'{script_dir}/model/y_Encoder.pkl')
-
-
+    #Save the model
+    joblib.dump(model, f'{script_dir}/RF_model.pkl')
 

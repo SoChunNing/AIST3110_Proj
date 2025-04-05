@@ -27,7 +27,6 @@ class LSTMClassifier(nn.Module):
         self.dropout2.p = .0
 
     def init_hidden(self, batch_size):
-        #Check if want to use CUDA and if it is available
         if torch.cuda.is_available():
             return (
                 torch.zeros(self.num_layers * self.num_directions, batch_size, self.hidden_dim,
