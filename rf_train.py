@@ -50,6 +50,8 @@ if __name__ == "__main__":
     print(f'Training complete at {get_time()}, model accuracy = {accuarcy:.2f}')
 
     #Save the model and y_encoder
-    joblib.dump(model, f'{script_dir}/RF_model.pkl')
-    joblib.dump(label_encoder, f'{script_dir}/y_Encoder.pkl')
+    joblib.dump(model, f'{script_dir}/model/RF_model.pkl')
+    joblib.dump(label_encoder, f'{script_dir}/model/y_Encoder.pkl')
+
+
 

@@ -6,16 +6,22 @@ from parameters import *
 
 #Convert chord labels for simiplified machine learning
 def convert_chord(chord):
+    #remove the things after slash
+    if '/' in chord:
+        chord = chord.split('/')[0]
     #Deal with single character chord labels
-    if len(chord) == 1 and chord != 'N':
+    if len(chord) <= 2 and chord != 'N':
         return chord + ':maj'
-    else:
-        root, minor = chord.split(':')
-        if minor != 'min':
-            minor = 'min'
-            return root + ':' + minor
-        else:
-            return chord + ':maj'
+    elif chord != 'N':
+        root, majmin = chord.split(':')
+        if len(majmin) < 3:
+            return root + ':maj'
+        elif majmin[:3] == 'min':
+            return root + ':min'
+        elif majmin[:3] == 'aug': #唉, 有鸡
+            return root + ':aug'
+        else: return root + ':maj'
+    else: return 'N' #No chord label
 
 #Extract start time, endtime and chord label from ground-truth file
 def load_gt(gt_path):
@@ -32,6 +38,7 @@ def load_gt(gt_path):
             end_time = float(str_toks[1])
             end_time_list.append(end_time)
             chord = str_toks[2]
+            chord = convert_chord(chord) #Convert the chord label to a simplified version
             chord_list.append(chord)
     
     return start_time_list, end_time_list, chord_list
@@ -50,8 +57,8 @@ def load_audio(audio_path, hop_length, target_sr = 44100):
 
 #Label y(chord) to chromagram within the corresponding boundaries and return a pd.DataFrame
 def label_y_to_chromagram(start_time_list, end_time_list, chord_list, chromagram:np.array, hop_length, sr)->pd.DataFrame:
-    #time length of each chroma frame
     y = []
+    #time length of each chroma frame
     tw = hop_length/sr
     chromagram_length = chromagram.shape[0] 
     for i in range(len(start_time_list)):
