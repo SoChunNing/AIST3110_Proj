@@ -7,33 +7,26 @@ import os
 import pandas as pd
 import joblib
 from parameters import *
-from datetime import datetime
 from y_encoder import *
 
 
-def load_csv(script_dir)->pd.DataFrame:
+def load_csv()->pd.DataFrame:
     #Load data from all csv files
-
-    #Create an empty DataFrame first
-    data_load = pd.DataFrame(columns=['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', 'y'])
+    #Return a list of dataframes
     for dataset in os.listdir(f'{script_dir}/data/csv'):
         for track in os.listdir(f'{script_dir}/data/csv/{dataset}'):
             for song in os.listdir(f'{script_dir}/data/csv/{dataset}/{track}'):
                 data = pd.read_csv(f'{script_dir}/data/csv/{dataset}/{track}/{song}')
-                data_load = pd.concat([data_load, data], ignore_index=True)
-                print('loading ' f'{script_dir}/data/csv/{dataset}/{track}/{song}')
+                data_list.append(data)
+                print('loading 'f'{script_dir}/data/csv/{dataset}/{track}/{song}')
 
-    return data_load
-
-def get_time()->str:
-    #Get the current date and time
-    now = datetime.now()
-    #Format the time as a string
-    current_time = now.strftime("%Y-%m-%d %H:%M:%S")
-    return current_time
+    return data_list
 
 if __name__ == "__main__":
-    data = load_csv(script_dir)
+    data_list = load_csv()
+    data = pd.DataFrame(columns=['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', 'y'])
+    for df in data_list:
+        data = pd.concat([data, df], ignore_index=True)
     y = data['y']
     data = data.drop(['y'], axis=1)
     create_encoder(y)

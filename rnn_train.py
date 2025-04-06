@@ -3,36 +3,37 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import tqdm
 from torch.utils.data import Dataset, DataLoader
 from rnn_model import LSTMClassifier
+from y_encoder import encode_y
+from rf_train import load_csv
+from parameters import *
+
+torch.set_default_dtype(torch.float64)
 
 class ChromagramDataset(Dataset):
-    def __init__(self, df_list):
+    def __init__(self, dataframes):
         self.data = []
         self.labels = []
-        for df in df_list:
-            # Assume the DataFrame contains chromagram data in the first 12 columns
-            # and a 'label' column for the corresponding label.
-            chroma = df.iloc[:, :12].values  # shape: (sequence_length, 12)
-            # Here we assume a single label for the whole sequence
-            # Alternatively, you can also have per-time-step labels.
-            label = df['label'].iloc[0]  
-            self.data.append(chroma)
-            self.labels.append(label)
+        for df in dataframes:
+            chromagram = df.iloc[:, :-1].values  
+            label = pd.DataFrame(encode_y(df['y']))
+            self.data.append(torch.tensor(chromagram))
+            self.labels.append(torch.tensor(label, dtype=torch.long))
     
     def __len__(self):
         return len(self.data)
     
     def __getitem__(self, idx):
-        # Convert the chromagram and label into PyTorch tensors.
-        # For an RNN, the input shape should be (sequence_length, num_features).
-        x = torch.tensor(self.data[idx], dtype=torch.float32)
-        y = torch.tensor(self.labels[idx], dtype=torch.long)
-        return x, y
-
-def rnn_train(csv_file):
-    features = df.iloc[:, :12].values  # shape: (sequence_length, 12)
-    label_value = df['label'].iloc[0]    # Assuming one label for the entire sequence
+        return self.data[idx], self.labels[idx]
+        
+def rnn_train():
+    # Load data from CSV files.
+    data_list = load_csv()
+    dataset = ChromagramDataset(data_list)
+    # Create a DataLoader for batching.
+    data_loader = DataLoader(dataset, batch_size=1, shuffle=True)
     # Specify model parameters.
     input_size = 12
     hidden_dim = 50
@@ -51,13 +52,14 @@ def rnn_train(csv_file):
     # Training loop (for demonstration, training on one sample).
     num_epochs = 10
     model.train()
+    print(f'Starting training at {get_time()}...')
     for epoch in range(num_epochs):
-        for batch_data, labels in data_loader:
+        for data, labels in data_loader:
             optimizer.zero_grad()
-            outputs = model(batch_data)
-            loss = criterion(outputs, labels)
+            pred = model(data)
+            loss = criterion(pred, labels)
             loss.backward()
             optimizer.step()
-        print(f"Epoch {epoch+1}/{num_epochs}, Loss: {loss.item():.4f}")
+        print(f'Epoch {epoch+1}/{num_epochs}, Loss: {loss.item():.4f}')
 
-    print("Training complete!")
+    print(f'Training complete at {get_time()}!')
