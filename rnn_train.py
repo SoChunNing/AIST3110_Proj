@@ -53,13 +53,13 @@ def rnn_train():
     num_epochs = 10
     model.train()
     print(f'Starting training at {get_time()}...')
-    for epoch in range(num_epochs):
+    for epoch in tqdm(range(num_epochs)):
         for data, labels in data_loader:
             optimizer.zero_grad()
             pred = model(data)
             loss = criterion(pred, labels)
             loss.backward()
             optimizer.step()
-        print(f'Epoch {epoch+1}/{num_epochs}, Loss: {loss.item():.4f}')
+        print(f'Epoch {epoch+1}/{num_epochs}, Training Loss: {loss.item():.4f}')
 
     print(f'Training complete at {get_time()}!')
