@@ -47,7 +47,7 @@ def rnn_train():
 
     # Define loss and optimizer.
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    optimizer = optim.SGD(model.parameters(), lr=0.005)
 
     # Training loop (for demonstration, training on one sample).
     num_epochs = 10
