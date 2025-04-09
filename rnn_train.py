@@ -3,7 +3,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import tqdm
+from tqdm import tqdm
 from torch.utils.data import Dataset, DataLoader
 from rnn_model import LSTMClassifier
 from y_encoder import encode_y
@@ -18,15 +18,16 @@ class ChromagramDataset(Dataset):
         self.labels = []
         for df in dataframes:
             chromagram = df.iloc[:, :-1].values  
-            label = pd.DataFrame(encode_y(df['y']))
-            self.data.append(torch.tensor(chromagram))
-            self.labels.append(torch.tensor(label, dtype=torch.long))
+            label = list(encode_y(df['y']))
+            self.data.append(chromagram)
+            self.labels.append(label)
+        self.num_classes = len(set(label for labels in self.labels for label in labels))
     
     def __len__(self):
         return len(self.data)
     
     def __getitem__(self, idx):
-        return self.data[idx], self.labels[idx]
+        return torch.tensor(self.data[idx], dtype=torch.float64), torch.tensor(self.labels[idx], dtype=torch.long)
     
 def collate_fn(data):
     # sort a list by sequence length (descending order) to use pack_padded_sequence
@@ -49,18 +50,34 @@ def collate_fn(data):
     gt_seqs = padded_seqs.long()
 
     return src_seqs, gt_seqs, lengths
-        
+
+def eval_model(model, data_loader):
+    model.eval()
+    correct, total, acc = 0, 0, 0
+    with torch.no_grad():
+        for data in data_loader:
+            inputs, labels, lengths = data
+            if torch.cuda.is_available():
+                inputs, labels = inputs.cuda(), labels.cuda()
+            outputs = model(inputs, lengths)
+            _, predicted = torch.max(outputs.view(-1, model.num_classes), 1)
+            total += labels.size(0)
+            correct += (predicted == labels.view(-1)).sum().item()
+    if total > 0:
+        acc = correct / total
+    return acc
+
 def rnn_train():
     # Load data from CSV files.
     data_list = load_csv()
     dataset = ChromagramDataset(data_list)
     # Create a DataLoader for batching.
-    data_loader = DataLoader(dataset, batch_size=1, shuffle=True, collate_fn=collate_fn)
+    data_loader = DataLoader(dataset, batch_size=4, shuffle=True, collate_fn=collate_fn)
     # Specify model parameters.
     input_size = 12
     hidden_dim = 50
-    num_classes = 10  # Adjust this to match your number of chord labels.
-    num_layers = 1
+    num_classes = dataset.num_classes
+    num_layers = 2
     use_cuda = torch.cuda.is_available()
     bidirectional = True
     model = LSTMClassifier(input_size, hidden_dim, num_classes, num_layers, use_cuda, bidirectional,
@@ -78,17 +95,22 @@ def rnn_train():
     model.train()
     print(f'Starting training at {get_time()}...')
     for epoch in tqdm(range(num_epochs)):
-        for data, labels in data_loader:
+        for data, labels, length in data_loader:
             if use_cuda:
                 data, labels = data.cuda(), labels.cuda()
             optimizer.zero_grad()
-            output = model(data)
+            output = model(data, length)
             output = output.view(-1, num_classes)
+            labels = labels.view(-1)
             loss = criterion(output, labels)
             loss.backward()
             optimizer.step()
-        print(f'Epoch {epoch+1}/{num_epochs}, Training Loss: {loss.item():.4f}')
+        train_acc = eval_model(model, data_loader)
+        print(f'Epoch {epoch+1}/{num_epochs}, Training Loss: {loss.item():.4f}, Training Accuracy: {train_acc:.4f}')
 
     print(f'Training complete at {get_time()}!')
     torch.save(model.state_dict(), f'{script_dir}/model/lstm_model.pth')
     print(f'Model saved at {script_dir}/model/lstm_model.pth')
+
+if __name__ == "__main__":
+    rnn_train()

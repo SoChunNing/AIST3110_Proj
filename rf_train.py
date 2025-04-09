@@ -10,9 +10,10 @@ from parameters import *
 from y_encoder import *
 
 
-def load_csv()->pd.DataFrame:
+def load_csv()->list:
     #Load data from all csv files
     #Return a list of dataframes
+    data_list = []
     for dataset in os.listdir(f'{script_dir}/data/csv'):
         for track in os.listdir(f'{script_dir}/data/csv/{dataset}'):
             for song in os.listdir(f'{script_dir}/data/csv/{dataset}/{track}'):
@@ -35,7 +36,7 @@ if __name__ == "__main__":
     print("Start training model at", get_time())
     #Split the data into training and testing sets
     X_train, X_test, y_train, y_test = train_test_split(data, y_encoded, test_size=0.2, random_state=42)
-    model = RandomForestClassifier(n_estimators=50, max_depth=20, random_state=42, max_features='log2')
+    model = RandomForestClassifier(n_estimators=100, random_state=42, max_features='log2')
     model.fit(X_train, y_train)
     
     #Evaluate the model
@@ -44,5 +45,5 @@ if __name__ == "__main__":
     print(f'Training complete at {get_time()}, model accuracy = {accuarcy:.2f}')
 
     #Save the model
-    joblib.dump(model, f'{script_dir}/RF_model.pkl')
+    joblib.dump(model, f'{script_dir}/model/RF_model.pkl')
 

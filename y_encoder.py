@@ -8,7 +8,6 @@ def create_encoder(y: pd.DataFrame) -> LabelEncoder:
     
     encoder = LabelEncoder()
     encoder.fit(y)
-    encoder_path = f'{script_dir}/y_Encoder.pkl'
     # Save the encoder to a file
     joblib.dump(encoder, encoder_path)
 

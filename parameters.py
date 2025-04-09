@@ -5,7 +5,7 @@ from datetime import datetime
 hop_length = 512
 target_sr = 11025
 script_dir = os.path.dirname(os.path.abspath(__file__))
-encoder_path = f'{script_dir}/y_Encoder.pkl'
+encoder_path = f'{script_dir}/model/y_Encoder.pkl'
 
 def get_time()->str:
     #Get the current date and time
