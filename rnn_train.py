@@ -90,7 +90,7 @@ def rnn_train():
     criterion = nn.CrossEntropyLoss(ignore_index=-1)
     optimizer = optim.SGD(model.parameters(), lr=0.005)
 
-    # Training loop (for demonstration, training on one sample).
+    # Training loop
     num_epochs = 10
     model.train()
     print(f'Starting training at {get_time()}...')
