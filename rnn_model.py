@@ -27,7 +27,7 @@ class LSTMClassifier(nn.Module):
         self.dropout2.p = .0
 
     def init_hidden(self, batch_size):
-        if torch.cuda.is_available():
+        if self.use_cuda:
             return (
                 torch.zeros(self.num_layers * self.num_directions, batch_size, self.hidden_dim,
                             dtype=torch.float64).cuda(),
@@ -39,9 +39,21 @@ class LSTMClassifier(nn.Module):
                 torch.zeros(self.num_layers * self.num_directions, batch_size, self.hidden_dim, dtype=torch.float64))
 
     def forward(self, batch, lengths=None):
+        # Check if input is unbatched (2-D) or batched (3-D)
+        if batch.dim() == 2:  # Unbatched: (sequence_length, input_size)
+            batch = batch.unsqueeze(0)  # Add batch dim: (1, sequence_length, input_size)
+            batch_size = 1
+        elif batch.dim() == 3:  # Batched: (batch_size, sequence_length, input_size)
+            batch_size = batch.size(0)
+        else:
+            raise ValueError("Input must be 2-D (unbatched) or 3-D (batched) tensor.")
+        
         self.hidden = self.init_hidden(batch.size(0))
         batch = self.dropout1(batch)
         if lengths:
+            # Ensure lengths is a list or tensor for pack_padded_sequence
+            if batch_size == 1 and isinstance(lengths, int):
+                lengths = [lengths]
             batch = pack_padded_sequence(batch, lengths, batch_first=True)
         output, self.hidden = self.lstm(batch, self.hidden)
         if lengths:

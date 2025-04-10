@@ -57,11 +57,14 @@ def eval_model(model, data_loader):
     with torch.no_grad():
         for data in data_loader:
             inputs, labels, lengths = data
-            if torch.cuda.is_available():
+            if model.use_cuda:
                 inputs, labels = inputs.cuda(), labels.cuda()
             outputs = model(inputs, lengths)
-            _, predicted = torch.max(outputs.view(-1, model.num_classes), 1)
-            total += labels.size(0)
+            predicted = outputs.topk(1, dim=2)[1].squeeze().view(-1)
+            labels = labels.view(-1)
+            predicted = predicted[labels >= 0]
+            labels = labels[labels >= 0]
+            total += len(labels)
             correct += (predicted == labels.view(-1)).sum().item()
     if total > 0:
         acc = correct / total
@@ -72,12 +75,8 @@ def rnn_train():
     data_list = load_csv()
     dataset = ChromagramDataset(data_list)
     # Create a DataLoader for batching.
-    data_loader = DataLoader(dataset, batch_size=4, shuffle=True, collate_fn=collate_fn)
+    data_loader = DataLoader(dataset, batch_size=8, shuffle=True, collate_fn=collate_fn)
     # Specify model parameters.
-    input_size = 12
-    hidden_dim = 50
-    num_classes = dataset.num_classes
-    num_layers = 2
     use_cuda = torch.cuda.is_available()
     bidirectional = True
     model = LSTMClassifier(input_size, hidden_dim, num_classes, num_layers, use_cuda, bidirectional,
@@ -88,25 +87,27 @@ def rnn_train():
     
     # Define loss and optimizer.
     criterion = nn.CrossEntropyLoss(ignore_index=-1)
-    optimizer = optim.SGD(model.parameters(), lr=0.005)
+    if use_cuda:
+        criterion = criterion.cuda()
+    optimizer = optim.SGD(model.parameters(), lr=0.1)
 
-    # Training loop
-    num_epochs = 10
-    model.train()
+    # Training loop (for demonstration, training on one sample).
+    num_epochs = 40
     print(f'Starting training at {get_time()}...')
     for epoch in tqdm(range(num_epochs)):
+        model.train()
         for data, labels, length in data_loader:
             if use_cuda:
                 data, labels = data.cuda(), labels.cuda()
             optimizer.zero_grad()
             output = model(data, length)
-            output = output.view(-1, num_classes)
+            output = output.view(-1, output.size(2))
             labels = labels.view(-1)
             loss = criterion(output, labels)
             loss.backward()
             optimizer.step()
-        train_acc = eval_model(model, data_loader)
-        print(f'Epoch {epoch+1}/{num_epochs}, Training Loss: {loss.item():.4f}, Training Accuracy: {train_acc:.4f}')
+        train_acc = eval_model(model, data_loader, num_classes)
+        print(f'Epoch {epoch+1}/{num_epochs}, Training Loss: {loss.item():.4f}, Accuracy: {train_acc:.4f}')
 
     print(f'Training complete at {get_time()}!')
     torch.save(model.state_dict(), f'{script_dir}/model/lstm_model.pth')

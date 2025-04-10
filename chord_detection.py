@@ -6,6 +6,10 @@ from preprocess import load_gt, convert_chord
 import numpy as np
 import joblib
 import os
+from y_encoder import decode_y
+from rnn_model import LSTMClassifier
+import torch
+
 
 def calculate_csr(gt_path, result_path):
     # Calculate the CSR (Chord Sequence Recognition) score
@@ -55,33 +59,63 @@ def find_gt(song_name):
 def save_chord_to_lab(chord_result, song_name):
     os.makedirs(f'{script_dir}/audio_to_regconize/result', exist_ok=True)
     np.savetxt(f'{script_dir}/audio_to_regconize/result/{song_name}.lab', chord_result, delimiter=",", fmt='%s')
-    print('Chord Result save at:', f'{script_dir}/audio_to_regconize/result/{song_name}.lab')
+    print('Result save at:', f'{script_dir}/audio_to_regconize/result/{song_name}.lab')
 
 def extarct_chord_rf(audio_path, song_name):
-
+    # Extract chord using Random Forest model
     X =  load_audio(audio_path, hop_length, target_sr)
     model = joblib.load(f'{script_dir}/model/rf_model.pkl')
     y = model.predict(X)
-    encoder = joblib.load(f'{script_dir}/label_encoder.pkl')
-
-    # Use inverse_transform() to decode y
-    y_decode = encoder.inverse_transform(y)
-
+    y_decode = decode_y(y)
     chord_results = []
     start_time = 0.0
     tw = (hop_length / target_sr)
 
     prev_chord = y_decode[0]
-    for i, chord in enumerate(y_decode, i):
+    print(f"Chord results for {song_name}.mp3:")
+    for i, chord in enumerate(y_decode, 1):
         #Skip the current loop if the chord label doesn't change!
         if chord == prev_chord and i != len(y_decode):
             continue
         end_time = i * tw
-        chord_results.append(f'{start_time}	{end_time}	{prev_chord}')
+        print(f'{start_time}  {end_time}  {prev_chord}')
+        chord_results.append(f'{start_time}	 {end_time}	 {prev_chord}')
         start_time = end_time
         prev_chord = chord
 
-    print(chord_results)
+    save_chord_to_lab(chord_results, song_name)
+
+def extarct_chord_rnn(audio_path, song_name):
+    # Extract chord using RNN model
+    X = load_audio(audio_path, hop_length, target_sr)
+    model = LSTMClassifier(input_size, hidden_dim, num_classes, num_layers, use_cuda=True, bidirectional=True)
+    model.load_state_dict(torch.load(f'{script_dir}/model/lstm_model.pth'))
+    model.eval()
+    if torch.cuda.is_available():
+        model = model.cuda()
+        X = torch.tensor(X, dtype=torch.float64).cuda()
+    else:
+        X = torch.tensor(X, dtype=torch.float64)
+    output = model(X)
+    pred = output.topk(1, dim=2)[1].squeeze().view(-1)
+    y = pred.tolist()
+    y_decode = decode_y(y)
+    chord_results = []
+    start_time = 0.0
+    tw = (hop_length / target_sr)
+
+    prev_chord = y_decode[0]
+    print(f"Chord results for {song_name}.mp3:")
+    for i, chord in enumerate(y_decode, 1):
+        #Skip the current loop if the chord label doesn't change!
+        if chord == prev_chord and i != len(y_decode):
+            continue
+        end_time = i * tw
+        print(f'{start_time}  {end_time}  {prev_chord}')
+        chord_results.append(f'{start_time}	 {end_time}	 {prev_chord}')
+        start_time = end_time
+        prev_chord = chord
+
     save_chord_to_lab(chord_results, song_name)
 
 if __name__ == "__main__":
@@ -89,18 +123,15 @@ if __name__ == "__main__":
     print("Reminder: Please put the audio file under '/audio_to_regconize/audio/'")
     model_id = input("Enter the model ID(1 for RF, 2 for RNN): ")
     cal_csr = input("Do you want to calculate the CSR? (Y/N): ").strip().upper()
-    '''
-    if model_id == '1':
-        model = joblib.load(f'{script_dir}/model/rf_model.pkl')
-    elif model_id == '2':
-        model = joblib.load(f'{script_dir}/model/rnn_model.h5')
-    else:
-        print("Invalid model ID.")
-        exit()
-    '''
+    if model_id != '1' and model_id != '2':
+        print("Invalid model ID. Please enter 1 or 2.")
+        exit(1)
     #The program will scan through '/audio_to_regconize/audio/' and detect all the audio files
     for song in os.listdir(f'{script_dir}/audio_to_regconize/audio'):
         song_name= os.path.splitext(song)[0]
-        extarct_chord_rf(f'{script_dir}/audio_to_regconize/audio/{song}', song_name)
+        if model_id == '1':
+            extarct_chord_rf(f'{script_dir}/audio_to_regconize/audio/{song}', song_name)
+        elif model_id == '2':
+            extarct_chord_rnn(f'{script_dir}/audio_to_regconize/audio/{song}', song_name)
         if cal_csr == 'Y':
             find_gt(song_name)

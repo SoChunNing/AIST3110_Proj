@@ -6,6 +6,10 @@ hop_length = 512
 target_sr = 11025
 script_dir = os.path.dirname(os.path.abspath(__file__))
 encoder_path = f'{script_dir}/model/y_Encoder.pkl'
+input_size = 12
+hidden_dim = 100
+num_classes = 8
+num_layers = 3
 
 def get_time()->str:
     #Get the current date and time

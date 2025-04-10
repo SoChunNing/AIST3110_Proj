@@ -6,6 +6,8 @@ from parameters import *
 
 #Convert chord labels for simiplified machine learning
 def convert_chord(chord):
+    return chord[0]
+    '''
     #remove the things after slash
     if '/' in chord:
         chord = chord.split('/')[0]
@@ -18,10 +20,9 @@ def convert_chord(chord):
             return root + ':maj'
         elif majmin[:3] == 'min':
             return root + ':min'
-        elif majmin[:3] == 'aug': #唉, 有鸡
-            return root + ':aug'
         else: return root + ':maj'
     else: return 'N' #No chord label
+    '''
 
 #Extract start time, endtime and chord label from ground-truth file
 def load_gt(gt_path):
