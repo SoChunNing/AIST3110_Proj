@@ -2,7 +2,7 @@
 from preprocess import load_audio
 from parameters import *
 from sklearn.preprocessing import LabelEncoder
-from preprocess import load_gt, convert_chord
+from preprocess import load_gt
 import numpy as np
 import joblib
 import os
@@ -10,13 +10,11 @@ from y_encoder import decode_y
 from rnn_model import LSTMClassifier
 import torch
 
-
 def calculate_csr(gt_path, result_path):
     # Calculate the CSR (Chord Sequence Recognition) score
     result_duration = 0.0
     gt_start_time_list, gt_end_time_list, gt_chord_list = load_gt(gt_path)
     result_start_time_list, result_end_time_list, result_chord_list = load_gt(result_path)
-    gt_chord_list = [convert_chord(chord) for chord in gt_chord_list]
     #CSR: total duration of segments where annotation equals estimation / total duration of annotated segements
     for i in range(len(gt_chord_list)):
         start_time, end_time, chord = float(gt_start_time_list[i]), float(gt_end_time_list[i]), gt_chord_list[i]
@@ -78,7 +76,7 @@ def extarct_chord_rf(audio_path, song_name):
         if chord == prev_chord and i != len(y_decode):
             continue
         end_time = i * tw
-        print(f'{start_time}  {end_time}  {prev_chord}')
+        print(f'{start_time:.6f}  {end_time:.6f}  {prev_chord}')
         chord_results.append(f'{start_time}	 {end_time}	 {prev_chord}')
         start_time = end_time
         prev_chord = chord
@@ -111,7 +109,7 @@ def extarct_chord_rnn(audio_path, song_name):
         if chord == prev_chord and i != len(y_decode):
             continue
         end_time = i * tw
-        print(f'{start_time}  {end_time}  {prev_chord}')
+        print(f'{start_time:.6f}  {end_time:.6f}  {prev_chord}')
         chord_results.append(f'{start_time}	 {end_time}	 {prev_chord}')
         start_time = end_time
         prev_chord = chord

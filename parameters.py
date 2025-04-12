@@ -4,12 +4,19 @@ from datetime import datetime
 
 hop_length = 512
 target_sr = 11025
+
 script_dir = os.path.dirname(os.path.abspath(__file__))
 encoder_path = f'{script_dir}/model/y_Encoder.pkl'
+
+#Hyperparameters
+batch_size = 8
+num_epochs = 40
 input_size = 12
-hidden_dim = 100
-num_classes = 8
+hidden_dim = 128
+num_classes = 18
 num_layers = 3
+lr = 0.05
+momentum = 0.8
 
 def get_time()->str:
     #Get the current date and time

@@ -1,14 +1,14 @@
-import pandas as pd
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
+from sklearn.model_selection import train_test_split
 from torch.utils.data import Dataset, DataLoader
 from rnn_model import LSTMClassifier
 from y_encoder import encode_y
 from rf_train import load_csv
 from parameters import *
+import matplotlib.pyplot as plt
 
 torch.set_default_dtype(torch.float64)
 
@@ -21,7 +21,6 @@ class ChromagramDataset(Dataset):
             label = list(encode_y(df['y']))
             self.data.append(chromagram)
             self.labels.append(label)
-        self.num_classes = len(set(label for labels in self.labels for label in labels))
     
     def __len__(self):
         return len(self.data)
@@ -72,10 +71,15 @@ def eval_model(model, data_loader):
 
 def rnn_train():
     # Load data from CSV files.
+    train_acc_list = []
+    test_acc_list = []
+    loss_list = []
     data_list = load_csv()
-    dataset = ChromagramDataset(data_list)
+    train_list, test_list = train_test_split(data_list, test_size=0.05, random_state=42)
+    train_dataset, test_datasets = ChromagramDataset(train_list), ChromagramDataset(test_list)
     # Create a DataLoader for batching.
-    data_loader = DataLoader(dataset, batch_size=8, shuffle=True, collate_fn=collate_fn)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
+    test_loader = DataLoader(test_datasets, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
     # Specify model parameters.
     use_cuda = torch.cuda.is_available()
     bidirectional = True
@@ -89,14 +93,13 @@ def rnn_train():
     criterion = nn.CrossEntropyLoss(ignore_index=-1)
     if use_cuda:
         criterion = criterion.cuda()
-    optimizer = optim.SGD(model.parameters(), lr=0.1)
-
+    optimizer = optim.SGD(model.parameters(), lr=lr, momentum=momentum)
+    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.9)
     # Training loop (for demonstration, training on one sample).
-    num_epochs = 40
     print(f'Starting training at {get_time()}...')
     for epoch in tqdm(range(num_epochs)):
         model.train()
-        for data, labels, length in data_loader:
+        for data, labels, length in train_loader:
             if use_cuda:
                 data, labels = data.cuda(), labels.cuda()
             optimizer.zero_grad()
@@ -106,12 +109,34 @@ def rnn_train():
             loss = criterion(output, labels)
             loss.backward()
             optimizer.step()
-        train_acc = eval_model(model, data_loader, num_classes)
-        print(f'Epoch {epoch+1}/{num_epochs}, Training Loss: {loss.item():.4f}, Accuracy: {train_acc:.4f}')
+        scheduler.step()
+        train_acc = eval_model(model, train_loader)
+        test_acc = eval_model(model, test_loader)
+        print(f'Epoch {epoch+1}/{num_epochs}, Training Loss: {loss.item():.4f}, Training Accuracy: {train_acc:.4f}, Test Accuracy: {test_acc:.4f}')
+        # disable dropout on last 10 epochs
+        if num_epochs - epoch == 10:
+            model.disable_dropout()
+        loss_list.append(loss.item())
+        train_acc_list.append(train_acc)
+        test_acc_list.append(test_acc)
 
     print(f'Training complete at {get_time()}!')
     torch.save(model.state_dict(), f'{script_dir}/model/lstm_model.pth')
     print(f'Model saved at {script_dir}/model/lstm_model.pth')
+
+    # Plotting the training loss and accuracy
+    plt.figure(figsize=(10, 5))
+    plt.plot(loss_list, label='Loss', color='red')
+    plt.plot(train_acc_list, label='Train Accuracy', color='blue')
+    plt.plot(test_acc_list, label='Test Accuracy', color='green')
+    plt.xticks(range(0, num_epochs, 5))
+    plt.xlabel('Epochs')
+    plt.ylabel('Accurac / Loss')
+    plt.title('Loss, Training and Test Accuracy')
+    plt.legend()
+    plt.grid()
+    plt.savefig(f'{script_dir}/model/lstm_{hidden_dim}_{num_layers}_{batch_size}_{lr}.png')
+    plt.show()
 
 if __name__ == "__main__":
     rnn_train()

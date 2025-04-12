@@ -1,8 +1,7 @@
 from sklearn.preprocessing import LabelEncoder
-from parameters import script_dir
+from parameters import *
 import joblib
 import pandas as pd
-from parameters import encoder_path
 
 def create_encoder(y: pd.DataFrame) -> LabelEncoder:
     

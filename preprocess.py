@@ -6,11 +6,12 @@ from parameters import *
 
 #Convert chord labels for simiplified machine learning
 def convert_chord(chord):
-    return chord[0]
-    '''
-    #remove the things after slash
     if '/' in chord:
         chord = chord.split('/')[0]
+    if ':' in chord:
+        chord = chord.split(':')[0]
+    return chord[:2]
+    '''
     #Deal with single character chord labels
     if len(chord) <= 2 and chord != 'N':
         return chord + ':maj'
