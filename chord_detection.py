@@ -86,8 +86,12 @@ def extarct_chord_rf(audio_path, song_name):
 def extarct_chord_rnn(audio_path, song_name):
     # Extract chord using RNN model
     X = load_audio(audio_path, hop_length, target_sr)
-    model = LSTMClassifier(input_size, hidden_dim, num_classes, num_layers, use_cuda=True, bidirectional=True)
-    model.load_state_dict(torch.load(f'{script_dir}/model/lstm_model.pth'))
+    if torch.cuda.is_available():
+        model = LSTMClassifier(input_size, hidden_dim, num_classes, num_layers, use_cuda=True, bidirectional=True)
+        model.load_state_dict(torch.load(f'{script_dir}/model/lstm_model.pth', weights_only=True))
+    else:
+        model = LSTMClassifier(input_size, hidden_dim, num_classes, num_layers, use_cuda=False, bidirectional=True)
+        model.load_state_dict(torch.load(f'{script_dir}/model/lstm_model.pth', weights_only=True, map_location=torch.device('cpu')))
     model.eval()
     if torch.cuda.is_available():
         model = model.cuda()
@@ -117,19 +121,28 @@ def extarct_chord_rnn(audio_path, song_name):
     save_chord_to_lab(chord_results, song_name)
 
 if __name__ == "__main__":
+    exit_prog = False
     print("Welcome to the automatic chord detector!")
     print("Reminder: Please put the audio file under '/audio_to_regconize/audio/'")
-    model_id = input("Enter the model ID(1 for RF, 2 for RNN): ")
-    cal_csr = input("Do you want to calculate the CSR? (Y/N): ").strip().upper()
-    if model_id != '1' and model_id != '2':
-        print("Invalid model ID. Please enter 1 or 2.")
-        exit(1)
-    #The program will scan through '/audio_to_regconize/audio/' and detect all the audio files
-    for song in os.listdir(f'{script_dir}/audio_to_regconize/audio'):
-        song_name= os.path.splitext(song)[0]
-        if model_id == '1':
-            extarct_chord_rf(f'{script_dir}/audio_to_regconize/audio/{song}', song_name)
-        elif model_id == '2':
-            extarct_chord_rnn(f'{script_dir}/audio_to_regconize/audio/{song}', song_name)
-        if cal_csr == 'Y':
-            find_gt(song_name)
+    while not exit_prog:
+        model_id = input("Enter the model ID(1 for RF, 2 for RNN): ")
+        cal_csr = input("Do you want to calculate the CSR? (Y/N): ").strip().upper()
+        if model_id != '1' and model_id != '2':
+            print("Invalid model ID. Please enter 1 or 2.")
+            exit(1)
+        #The program will scan through '/audio_to_regconize/audio/' and detect all the audio files
+        for song in os.listdir(f'{script_dir}/audio_to_regconize/audio'):
+            song_name= os.path.splitext(song)[0]
+            if model_id == '1':
+                extarct_chord_rf(f'{script_dir}/audio_to_regconize/audio/{song}', song_name)
+            elif model_id == '2':
+                extarct_chord_rnn(f'{script_dir}/audio_to_regconize/audio/{song}', song_name)
+            if cal_csr == 'Y':
+                find_gt(song_name)
+        #Ask the user if they want to continue or exit the program
+        cont = input("Do you want to continue? (Y/N): ").strip().upper()
+        if cont == 'N':
+            exit_prog = True
+            print("Exiting the program.")
+        else:
+            continue
