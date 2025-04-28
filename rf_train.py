@@ -9,7 +9,6 @@ import joblib
 from parameters import *
 from y_encoder import *
 
-
 def load_csv()->list:
     #Load data from all csv files
     #Return a list of dataframes
@@ -38,7 +37,7 @@ if __name__ == "__main__":
     print("Start training model at", get_time())
     #Split the data into training and testing sets
     X_train, X_test, y_train, y_test = train_test_split(data, y_encoded, test_size=0.2, random_state=42)
-    model = RandomForestClassifier(n_estimators=50, random_state=42, max_features='log2')
+    model = RandomForestClassifier(n_estimators=10, random_state=42, max_features='log2')
     model.fit(X_train, y_train)
     
     #Evaluate the model

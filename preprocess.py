@@ -10,7 +10,23 @@ def convert_chord(chord):
         chord = chord.split('/')[0]
     if ':' in chord:
         chord = chord.split(':')[0]
-    return chord[:2]
+    if len(chord) > 1 and chord[1] == '#':
+        return chord[:2]
+    elif len(chord) > 1 and chord[1] == 'b':
+        match chord:
+            case 'Bb':
+                return 'A#'
+            case 'Db':
+                return 'C#'
+            case 'Eb':
+                return 'D#'
+            case 'Gb':
+                return 'F#'
+            case 'Ab':
+                return 'G#'
+        
+    return chord[0]
+
     '''
     #Deal with single character chord labels
     if len(chord) <= 2 and chord != 'N':
@@ -24,6 +40,10 @@ def convert_chord(chord):
         else: return root + ':maj'
     else: return 'N' #No chord label
     '''
+def remove_vocal(y):
+    #Remove vocal from the audio signal
+    y_harmonic, _ = librosa.effects.hpss(y)
+    return y_harmonic
 
 #Extract start time, endtime and chord label from ground-truth file
 def load_gt(gt_path):
@@ -50,6 +70,7 @@ def load_audio(audio_path, hop_length, target_sr = 44100):
 
     y, sr = librosa.load(audio_path, sr = None)
     y_downsampled = librosa.resample(y, orig_sr=sr, target_sr=target_sr)
+    y_downsampled = remove_vocal(y_downsampled)
     tuning = librosa.estimate_tuning(y=y_downsampled, sr=target_sr)
     #y_downsampled_pitched = librosa.effects.pitch_shift(y=y_downsampled, sr=target_sr, n_steps=0) #pitch shift for debugging
     chromagram = librosa.feature.chroma_cqt(y=y_downsampled, sr=target_sr, hop_length=hop_length, tuning=tuning)

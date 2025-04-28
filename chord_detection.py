@@ -13,11 +13,16 @@ import torch
 def calculate_csr(gt_path, result_path):
     # Calculate the CSR (Chord Sequence Recognition) score
     result_duration = 0.0
+    total_duration = 0.0
     gt_start_time_list, gt_end_time_list, gt_chord_list = load_gt(gt_path)
     result_start_time_list, result_end_time_list, result_chord_list = load_gt(result_path)
     #CSR: total duration of segments where annotation equals estimation / total duration of annotated segements
     for i in range(len(gt_chord_list)):
         start_time, end_time, chord = float(gt_start_time_list[i]), float(gt_end_time_list[i]), gt_chord_list[i]
+        if chord == 'N':
+            continue # Skip 'N' chords
+        duration = end_time - start_time
+        total_duration += duration
         # Find the corresponding segment in the result
         for j in range(len(result_chord_list)):
             result_start_time, result_end_time, result_chord = float(result_start_time_list[j]), float(result_end_time_list[j]), result_chord_list[j]
@@ -26,14 +31,13 @@ def calculate_csr(gt_path, result_path):
                 # Calculate the overlap duration
                 overlap_duration = min(end_time, result_end_time) - max(start_time, result_start_time)
                 break
-        else:
-            overlap_duration = 0.0
+            else:
+                overlap_duration = 0.0
         # Add the overlap duration to the CSR score
         result_duration += overlap_duration
-    # Calculate the total duration of the annotated segments
-    totol_duration = gt_end_time_list[-1]
-    csr_score = result_duration / totol_duration if totol_duration > 0 else 0.0 # Avoid division by zero
+    csr_score = result_duration / total_duration if total_duration > 0 else 0.0 # Avoid division by zero
     print(f"CSR score: {csr_score:.2f}")
+    return result_duration, total_duration
 
 def find_gt(song_name):
     found = False
@@ -44,7 +48,7 @@ def find_gt(song_name):
                 gt_name = os.path.splitext(song)[0]
                 if gt_name == song_name:
                     gt_path = f'{script_dir}/data/gt/{dataset}/{track}/{song}'
-                    calculate_csr(gt_path, f'{script_dir}/audio_to_regconize/result/{song_name}.lab')
+                    result_duration, total_duration = calculate_csr(gt_path, f'{script_dir}/audio_to_regconize/result/{song_name}.lab')
                     found = True
                     break
             if found:
@@ -53,6 +57,7 @@ def find_gt(song_name):
             break
     if not found:
         print(f"Ground truth for {song_name} not found in dataset.")
+    return result_duration, total_duration
 
 def save_chord_to_lab(chord_result, song_name):
     os.makedirs(f'{script_dir}/audio_to_regconize/result', exist_ok=True)
@@ -122,6 +127,8 @@ def extarct_chord_rnn(audio_path, song_name):
 
 if __name__ == "__main__":
     exit_prog = False
+    result_duration_sum = 0.0
+    total_duration_sum = 0.0
     print("Welcome to the automatic chord detector!")
     print("Reminder: Please put the audio file under '/audio_to_regconize/audio/'")
     while not exit_prog:
@@ -135,10 +142,15 @@ if __name__ == "__main__":
             song_name= os.path.splitext(song)[0]
             if model_id == '1':
                 extarct_chord_rf(f'{script_dir}/audio_to_regconize/audio/{song}', song_name)
-            elif model_id == '2':
+            else:
                 extarct_chord_rnn(f'{script_dir}/audio_to_regconize/audio/{song}', song_name)
             if cal_csr == 'Y':
-                find_gt(song_name)
+                result_duration, total_duration = find_gt(song_name)
+                result_duration_sum += result_duration
+                total_duration_sum += total_duration
+        if cal_csr == 'Y':
+            overall_csr = result_duration_sum / total_duration_sum if total_duration_sum > 0 else 0.0 # Avoid division by zero
+            print(f"Overall CSR score: {overall_csr:.2f}")
         #Ask the user if they want to continue or exit the program
         cont = input("Do you want to continue? (Y/N): ").strip().upper()
         if cont == 'N':
